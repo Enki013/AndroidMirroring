@@ -1,0 +1,10 @@
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Large bundled binaries — fetch via scripts/fetch-binaries.sh
+AndroidMirror/Resources/Binaries/scrcpy
+AndroidMirror/Resources/Binaries/adb
+AndroidMirror/Resources/Binaries/scrcpy-server
