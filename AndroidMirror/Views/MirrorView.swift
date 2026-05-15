@@ -56,10 +56,14 @@ struct MirrorView: View {
                     }
                     .fileDropOverlay(device: device)
                 }
-                .onAppear { mirrorFrame = frame }
+                .onAppear {
+                    DispatchQueue.main.async { mirrorFrame = frame }
+                }
                 .onChange(of: frame) { _, newFrame in
-                    mirrorFrame = newFrame
-                    mirrorSession.updateMirrorFrame(newFrame)
+                    DispatchQueue.main.async {
+                        mirrorFrame = newFrame
+                        mirrorSession.updateMirrorFrame(newFrame)
+                    }
                 }
             }
             .padding(24)

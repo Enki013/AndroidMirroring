@@ -48,4 +48,36 @@ struct MirrorOptions: Codable, Equatable {
 
         return args
     }
+
+    /// Server key=value arguments for embedded mode (direct scrcpy-server invocation).
+    /// Always uses H.264 since only the H264Decoder is available.
+    func serverArguments(scid: UInt32) -> [String] {
+        // SCID must be hex — server uses Integer.parseInt(value, 0x10)
+        let scidHex = String(format: "%08x", scid)
+        var args = [
+            "tunnel_forward=true",
+            "audio=false",
+            "control=true",
+            "cleanup=false",
+            "raw_stream=true",
+            "video_codec=h264",
+            "log_level=verbose",
+            "scid=\(scidHex)"
+        ]
+
+        switch preset {
+        case .balanced:
+            args += ["max_size=1920", "max_fps=60"]
+        case .performance:
+            args += ["max_size=1024"]
+        case .quality:
+            // Embedded mode forces H.264 (no H.265 decoder); use high bitrate instead
+            args += ["max_size=1920", "max_fps=60", "video_bit_rate=16000000"]
+        }
+
+        if turnScreenOff { args.append("power_off_on_close=true") }
+        if stayAwake { args.append("stay_awake=true") }
+
+        return args
+    }
 }

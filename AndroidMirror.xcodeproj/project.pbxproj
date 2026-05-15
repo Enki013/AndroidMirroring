@@ -28,6 +28,7 @@
 		A10000010000000000000013 /* MetalVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000013 /* MetalVideoView.swift */; };
 		A10000010000000000000014 /* ScrcpyMetalRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000014 /* ScrcpyMetalRenderer.swift */; };
 		A10000010000000000000017 /* H264Decoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000018 /* H264Decoder.swift */; };
+		A10000010000000000000019 /* ScrcpyControlChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000019 /* ScrcpyControlChannel.swift */; };
 		A10000010000000000000015 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000015 /* Assets.xcassets */; };
 		A10000010000000000000016 /* Binaries in Resources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000016 /* Binaries */; };
 /* End PBXBuildFile section */
@@ -54,6 +55,7 @@
 		A20000010000000000000013 /* MetalVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalVideoView.swift; sourceTree = "<group>"; };
 		A20000010000000000000014 /* ScrcpyMetalRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrcpyMetalRenderer.swift; sourceTree = "<group>"; };
 		A20000010000000000000018 /* H264Decoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = H264Decoder.swift; sourceTree = "<group>"; };
+		A20000010000000000000019 /* ScrcpyControlChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrcpyControlChannel.swift; sourceTree = "<group>"; };
 		A20000010000000000000015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000010000000000000016 /* Binaries */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Binaries; sourceTree = "<group>"; };
 		A20000010000000000000017 /* AndroidMirror.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AndroidMirror.entitlements; sourceTree = "<group>"; };
@@ -153,6 +155,7 @@
 				A20000010000000000000013 /* MetalVideoView.swift */,
 				A20000010000000000000014 /* ScrcpyMetalRenderer.swift */,
 				A20000010000000000000018 /* H264Decoder.swift */,
+				A20000010000000000000019 /* ScrcpyControlChannel.swift */,
 			);
 			path = Metal;
 			sourceTree = "<group>";
@@ -252,6 +255,7 @@
 				A10000010000000000000013 /* MetalVideoView.swift in Sources */,
 				A10000010000000000000014 /* ScrcpyMetalRenderer.swift in Sources */,
 				A10000010000000000000017 /* H264Decoder.swift in Sources */,
+				A10000010000000000000019 /* ScrcpyControlChannel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

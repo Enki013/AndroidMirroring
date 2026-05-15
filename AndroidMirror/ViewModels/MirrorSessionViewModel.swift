@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import SwiftUI
 
@@ -15,6 +16,8 @@ final class MirrorSessionViewModel: ObservableObject {
 
     private let settings = AppSettings.shared
     private var geometry: MirrorWindowGeometry?
+    private var bridgeObserver: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
 
     var mirrorOptions: MirrorOptions {
         get { settings.mirrorOptions }
@@ -33,18 +36,45 @@ final class MirrorSessionViewModel: ObservableObject {
 
         if useEmbeddedVideo {
             scrcpyService.stop()
+            statusMessage = "Starting embedded mirror…"
+            isMirroring = true
+
+            // Start the server bridge (async: pushes server, creates forward, starts process)
             serverBridge.start(serial: device.serial, options: mirrorOptions)
-            metalRenderer.connect(serial: device.serial, port: serverBridge.videoPort ?? 27183)
-            isMirroring = serverBridge.isActive
-            statusMessage = isMirroring ? "Embedded mirror active" : serverBridge.lastError
+
+            // Observe videoPort — when it becomes available, connect the Metal renderer
+            bridgeObserver = serverBridge.$videoPort
+                .compactMap { $0 }
+                .first()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] port in
+                    guard let self else { return }
+                    self.metalRenderer.connect(port: port)
+                    self.statusMessage = "Embedded mirror active (port \(port))"
+                }
+
+            // Also observe errors
+            serverBridge.$lastError
+                .compactMap { $0 }
+                .first()
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] error in
+                    guard let self else { return }
+                    self.statusMessage = error
+                    self.isMirroring = false
+                }
+                .store(in: &cancellables)
+
         } else {
             serverBridge.stop()
             metalRenderer.disconnect()
+            bridgeObserver = nil
             scrcpyService.start(serial: device.serial, options: mirrorOptions, geometry: geom)
             isMirroring = scrcpyService.isRunning
             statusMessage = isMirroring ? nil : scrcpyService.lastError
         }
     }
+
 
     func updateMirrorFrame(_ frame: CGRect) {
         guard isMirroring, !useEmbeddedVideo else { return }
@@ -56,6 +86,8 @@ final class MirrorSessionViewModel: ObservableObject {
     }
 
     func stopMirroring() {
+        bridgeObserver = nil
+        cancellables.removeAll()
         scrcpyService.stop()
         serverBridge.stop()
         metalRenderer.disconnect()
