@@ -69,10 +69,11 @@ struct MirrorView: View {
         }
     }
 
-    // MARK: - Phone View
-
     private func phoneView(device: AndroidDevice) -> some View {
-        DeviceChrome {
+        let size = mirrorSession.metalRenderer.videoSize
+        let ratio = size.width > 0 && size.height > 0 ? (size.width / size.height) : (9 / 19.5)
+        
+        return DeviceChrome(aspectRatio: ratio) {
             if mirrorSession.isMirroring {
                 MetalVideoView(renderer: mirrorSession.metalRenderer)
             } else {
@@ -243,12 +244,13 @@ struct MirrorView: View {
 // MARK: - Device Chrome
 
 struct DeviceChrome<Content: View>: View {
+    let aspectRatio: CGFloat
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         content()
             .frame(maxWidth: 420)
-            .aspectRatio(9 / 19.5, contentMode: .fit)
+            .aspectRatio(aspectRatio, contentMode: .fit)
             .background(Color(white: 0.04))
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .overlay(

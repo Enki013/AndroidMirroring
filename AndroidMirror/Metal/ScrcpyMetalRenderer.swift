@@ -9,6 +9,7 @@ final class ScrcpyMetalRenderer: ObservableObject {
     @Published private(set) var isConnected = false
     @Published private(set) var statusText = "Waiting for stream…"
     @Published private(set) var latestPixelBuffer: CVPixelBuffer?
+    @Published var videoSize: CGSize = CGSize(width: 9, height: 19.5)
 
     private var streamTask: Task<Void, Never>?
     private let decoder = H264Decoder()
@@ -27,6 +28,7 @@ final class ScrcpyMetalRenderer: ObservableObject {
                 if self.controlChannel.videoWidth != w || self.controlChannel.videoHeight != h {
                     self.controlChannel.videoWidth = w
                     self.controlChannel.videoHeight = h
+                    self.videoSize = CGSize(width: CGFloat(w), height: CGFloat(h))
                     print("[MetalRenderer] Video dimensions: \(w)x\(h)")
                 }
             }
