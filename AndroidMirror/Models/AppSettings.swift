@@ -11,7 +11,7 @@ final class AppSettings: ObservableObject {
     @AppStorage("mirrorPreset") private var mirrorPresetRaw: String = QualityPreset.balanced.rawValue
     @AppStorage("mirrorAudioEnabled") var mirrorAudioEnabled: Bool = true
     @AppStorage("mirrorTurnScreenOff") var mirrorTurnScreenOff: Bool = false
-    @AppStorage("useEmbeddedVideo") var useEmbeddedVideo: Bool = false
+
 
     var mirrorPreset: QualityPreset {
         get { QualityPreset(rawValue: mirrorPresetRaw) ?? .balanced }

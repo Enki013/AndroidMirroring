@@ -8,7 +8,6 @@ final class MirrorSessionViewModel: ObservableObject {
     @Published var isMirroring = false
     @Published var isRecording = false
     @Published var statusMessage: String?
-    @Published var useEmbeddedVideo: Bool = false
 
     let scrcpyService = ScrcpyProcessService()
     let serverBridge = ScrcpyServerBridge()
@@ -30,59 +29,40 @@ final class MirrorSessionViewModel: ObservableObject {
             return
         }
 
-        let geom = WindowGeometryConverter.geometry(for: frame)
-        geometry = geom
-        useEmbeddedVideo = settings.useEmbeddedVideo
+        scrcpyService.stop()
+        statusMessage = "Starting mirror…"
+        isMirroring = true
 
-        if useEmbeddedVideo {
-            scrcpyService.stop()
-            statusMessage = "Starting embedded mirror…"
-            isMirroring = true
+        // Start the server bridge (async: pushes server, creates forward, starts process)
+        serverBridge.start(serial: device.serial, options: mirrorOptions)
 
-            // Start the server bridge (async: pushes server, creates forward, starts process)
-            serverBridge.start(serial: device.serial, options: mirrorOptions)
+        // Observe videoPort — when it becomes available, connect the Metal renderer
+        bridgeObserver = serverBridge.$videoPort
+            .compactMap { $0 }
+            .first()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] port in
+                guard let self else { return }
+                self.metalRenderer.connect(port: port)
+                self.statusMessage = "Mirror active"
+            }
 
-            // Observe videoPort — when it becomes available, connect the Metal renderer
-            bridgeObserver = serverBridge.$videoPort
-                .compactMap { $0 }
-                .first()
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] port in
-                    guard let self else { return }
-                    self.metalRenderer.connect(port: port)
-                    self.statusMessage = "Embedded mirror active (port \(port))"
-                }
-
-            // Also observe errors
-            serverBridge.$lastError
-                .compactMap { $0 }
-                .first()
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] error in
-                    guard let self else { return }
-                    self.statusMessage = error
-                    self.isMirroring = false
-                }
-                .store(in: &cancellables)
-
-        } else {
-            serverBridge.stop()
-            metalRenderer.disconnect()
-            bridgeObserver = nil
-            scrcpyService.start(serial: device.serial, options: mirrorOptions, geometry: geom)
-            isMirroring = scrcpyService.isRunning
-            statusMessage = isMirroring ? nil : scrcpyService.lastError
-        }
+        // Also observe errors
+        serverBridge.$lastError
+            .compactMap { $0 }
+            .first()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                guard let self else { return }
+                self.statusMessage = error
+                self.isMirroring = false
+            }
+            .store(in: &cancellables)
     }
 
 
     func updateMirrorFrame(_ frame: CGRect) {
-        guard isMirroring, !useEmbeddedVideo else { return }
-        let geom = WindowGeometryConverter.geometry(for: frame)
-        if geom != geometry {
-            geometry = geom
-            scrcpyService.updateGeometry(geom)
-        }
+        // Resizing is handled natively by the MetalVideoView in embedded mode.
     }
 
     func stopMirroring() {

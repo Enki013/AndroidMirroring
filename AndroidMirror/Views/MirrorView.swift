@@ -6,15 +6,13 @@ struct MirrorView: View {
     @EnvironmentObject private var settings: AppSettings
 
     @State private var mirrorFrame: CGRect = .zero
+    @State private var showControls = false
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(nsColor: .windowBackgroundColor), Color(red: 0.08, green: 0.08, blue: 0.1)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // Clean dark background
+            Color(red: 0.06, green: 0.06, blue: 0.07)
+                .ignoresSafeArea()
 
             if let device = deviceList.selectedDevice, device.isReady {
                 activeMirror(device: device)
@@ -23,58 +21,193 @@ struct MirrorView: View {
             }
         }
         .toolbar {
-            MirrorToolbar()
+            ToolbarItemGroup(placement: .primaryAction) {
+                if mirrorSession.isMirroring {
+                    // Settings toggle
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                            showControls.toggle()
+                        }
+                    } label: {
+                        Label("Settings", systemImage: showControls ? "slider.horizontal.3" : "slider.horizontal.3")
+                    }
+                    .help("Show Controls")
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .startMirroring)) { _ in
             startMirror()
         }
     }
 
+    // MARK: - Active Mirror (Phone Only)
+
     private func activeMirror(device: AndroidDevice) -> some View {
-        VStack(spacing: 16) {
-            MirrorControlBar(device: device, mirrorFrame: mirrorFrame)
+        GeometryReader { proxy in
+            let frame = proxy.frame(in: .global)
 
-            GeometryReader { proxy in
-                let frame = proxy.frame(in: .global)
+            ZStack {
+                // Phone frame — centered, fills available space
+                phoneView(device: device)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                ZStack {
-                    DeviceChrome {
-                        if mirrorSession.useEmbeddedVideo && mirrorSession.isMirroring {
-                            MetalVideoView(renderer: mirrorSession.metalRenderer)
-                        } else if mirrorSession.isMirroring {
-                            // scrcpy SDL window is positioned behind this transparent area
-                            Color.clear
-                                .overlay {
-                                    Text("Mirroring active")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .opacity(0.6)
-                                }
-                        } else {
-                            placeholder(device: device)
-                        }
-                    }
-                    .fileDropOverlay(device: device)
-                }
-                .onAppear {
-                    DispatchQueue.main.async { mirrorFrame = frame }
-                }
-                .onChange(of: frame) { _, newFrame in
-                    DispatchQueue.main.async {
-                        mirrorFrame = newFrame
-                        mirrorSession.updateMirrorFrame(newFrame)
-                    }
+                // Floating controls panel — slides in from right
+                if showControls {
+                    controlsPanel(device: device)
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .padding(24)
-
-            if let message = mirrorSession.statusMessage {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            .onAppear {
+                DispatchQueue.main.async { mirrorFrame = frame }
+            }
+            .onChange(of: frame) { _, newFrame in
+                DispatchQueue.main.async {
+                    mirrorFrame = newFrame
+                    mirrorSession.updateMirrorFrame(newFrame)
+                }
             }
         }
     }
+
+    // MARK: - Phone View
+
+    private func phoneView(device: AndroidDevice) -> some View {
+        DeviceChrome {
+            if mirrorSession.isMirroring {
+                MetalVideoView(renderer: mirrorSession.metalRenderer)
+            } else {
+                placeholder(device: device)
+            }
+        }
+        .fileDropOverlay(device: device)
+        .padding(.horizontal, 0)
+        .padding(.vertical, 8)
+    }
+
+
+
+    // MARK: - Controls Panel
+
+    private func controlsPanel(device: AndroidDevice) -> some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                VStack(alignment: .leading, spacing: 0) {
+                    // Quality section
+                    controlSection("Quality") {
+                        Picker("Quality", selection: Binding(
+                            get: { settings.mirrorPreset },
+                            set: { newValue in
+                                settings.mirrorPreset = newValue
+                                mirrorSession.restartIfNeeded(device: device, frame: mirrorFrame)
+                            }
+                        )) {
+                            ForEach(QualityPreset.allCases) { preset in
+                                Text(preset.title).tag(preset)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    Divider().padding(.horizontal, 16)
+
+                    // Toggles section
+                    controlSection("Options") {
+                        VStack(spacing: 8) {
+                            controlToggle("Audio", icon: "speaker.wave.2",
+                                isOn: Binding(
+                                    get: { settings.mirrorAudioEnabled },
+                                    set: {
+                                        settings.mirrorAudioEnabled = $0
+                                        mirrorSession.restartIfNeeded(device: device, frame: mirrorFrame)
+                                    }
+                                ))
+                        }
+                    }
+
+                    if mirrorSession.isMirroring {
+                        Divider().padding(.horizontal, 16)
+
+                        // Actions section
+                        controlSection("Actions") {
+                            HStack(spacing: 10) {
+                                actionButton("Screenshot", icon: "camera") {
+                                    Task { await mirrorSession.takeScreenshot(device: device) }
+                                }
+                                actionButton("Record", icon: "record.circle") {
+                                    mirrorSession.startRecording()
+                                }
+                                actionButton("Stop", icon: "stop.fill") {
+                                    mirrorSession.stopMirroring()
+                                }
+                            }
+                        }
+                    }
+
+                    // Status
+                    if let message = mirrorSession.statusMessage {
+                        Text(message)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                    }
+                }
+                .frame(width: 260)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(0.4), radius: 20, y: 8)
+            }
+            .padding(16)
+        }
+    }
+
+    // MARK: - Control Helpers
+
+    private func controlSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            content()
+        }
+        .padding(16)
+    }
+
+    private func controlToggle(_ label: String, icon: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16)
+                Text(label)
+                    .font(.callout)
+            }
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+    }
+
+    private func actionButton(_ label: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                Text(label)
+                    .font(.caption2)
+            }
+            .foregroundStyle(.white.opacity(0.85))
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Placeholder & Empty State
 
     private func placeholder(device: AndroidDevice) -> some View {
         VStack(spacing: 16) {
@@ -107,6 +240,8 @@ struct MirrorView: View {
     }
 }
 
+// MARK: - Device Chrome
+
 struct DeviceChrome<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
@@ -114,22 +249,26 @@ struct DeviceChrome<Content: View>: View {
         content()
             .frame(maxWidth: 420)
             .aspectRatio(9 / 19.5, contentMode: .fit)
-            .background(Color(white: 0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+            .background(Color(white: 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 36, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
-                            colors: [.white.opacity(0.35), .white.opacity(0.08)],
+                            colors: [.white.opacity(0.25), .white.opacity(0.05)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 2
+                        lineWidth: 1.5
                     )
             )
-            .shadow(color: .black.opacity(0.45), radius: 32, y: 16)
+            .shadow(color: .black.opacity(0.5), radius: 40, y: 20)
     }
 }
+
+
+
+// MARK: - Control Bar (kept for compatibility but unused in new layout)
 
 struct MirrorControlBar: View {
     let device: AndroidDevice
@@ -139,73 +278,10 @@ struct MirrorControlBar: View {
     @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
-        HStack(spacing: 12) {
-            Picker("Quality", selection: Binding(
-                get: { settings.mirrorPreset },
-                set: { newValue in
-                    settings.mirrorPreset = newValue
-                    mirrorSession.restartIfNeeded(device: device, frame: mirrorFrame)
-                }
-            )) {
-                ForEach(QualityPreset.allCases) { preset in
-                    Text(preset.title).tag(preset)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
-
-            Toggle("Audio", isOn: Binding(
-                get: { settings.mirrorAudioEnabled },
-                set: {
-                    settings.mirrorAudioEnabled = $0
-                    mirrorSession.restartIfNeeded(device: device, frame: mirrorFrame)
-                }
-            ))
-
-            Toggle("Embedded", isOn: Binding(
-                get: { settings.useEmbeddedVideo },
-                set: {
-                    settings.useEmbeddedVideo = $0
-                    mirrorSession.restartIfNeeded(device: device, frame: mirrorFrame)
-                }
-            ))
-            .help("Phase 2: Metal embedded video (experimental)")
-
-            Spacer()
-
-            if mirrorSession.isMirroring {
-                Button {
-                    Task { await mirrorSession.takeScreenshot(device: device) }
-                } label: {
-                    Label("Screenshot", systemImage: "camera")
-                }
-
-                Button {
-                    mirrorSession.startRecording()
-                } label: {
-                    Label("Record", systemImage: "record.circle")
-                }
-            }
-        }
-        .padding(.horizontal, 24)
+        EmptyView()
     }
 }
 
-struct MirrorToolbar: ToolbarContent {
-    @EnvironmentObject private var mirrorSession: MirrorSessionViewModel
-    @EnvironmentObject private var deviceList: DeviceListViewModel
-
-    var body: some ToolbarContent {
-        ToolbarItem(placement: .automatic) {
-            if mirrorSession.isMirroring {
-                Text("Live")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.green)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.15))
-                    .clipShape(Capsule())
-            }
-        }
-    }
+extension Notification.Name {
+    static let startMirroring = Notification.Name("AndroidMirror.startMirroring")
 }

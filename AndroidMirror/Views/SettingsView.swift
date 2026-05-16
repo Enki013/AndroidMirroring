@@ -25,7 +25,6 @@ struct SettingsView: View {
                 }
                 Toggle("Forward audio", isOn: $settings.mirrorAudioEnabled)
                 Toggle("Turn device screen off while mirroring", isOn: $settings.mirrorTurnScreenOff)
-                Toggle("Use embedded Metal video (experimental)", isOn: $settings.useEmbeddedVideo)
             }
 
             Section("Shortcuts (scrcpy)") {

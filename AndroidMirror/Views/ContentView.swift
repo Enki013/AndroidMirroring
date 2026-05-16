@@ -31,12 +31,7 @@ struct ContentView: View {
     }
 
     private var mainLayout: some View {
-        NavigationSplitView {
-            SidebarView(showConnectionSheet: $showConnectionSheet)
-        } detail: {
-            MirrorView()
-        }
-        .navigationSplitViewStyle(.balanced)
+        MirrorView()
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 if mirrorSession.isMirroring {
@@ -47,16 +42,58 @@ struct ContentView: View {
                     }
                 }
 
-                Button {
-                    showConnectionSheet = true
+                Menu {
+                    if deviceList.isLoading && deviceList.devices.isEmpty {
+                        Text("Searching...")
+                    } else if deviceList.devices.isEmpty {
+                        Text("No Devices")
+                    } else {
+                        Picker("Device", selection: $deviceList.selectedDevice) {
+                            ForEach(deviceList.devices) { device in
+                                Text(device.displayName).tag(Optional(device))
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    if let device = deviceList.selectedDevice, device.isReady {
+                        Button("Send files…") {
+                            openFilePicker(for: device)
+                        }
+                        Divider()
+                    }
+
+                    Button("Refresh Devices") {
+                        Task { await deviceList.refresh() }
+                    }
+
+                    Button("Connect Wirelessly…") {
+                        showConnectionSheet = true
+                    }
                 } label: {
-                    Label("Connect", systemImage: "antenna.radiowaves.left.and.right")
+                    HStack(spacing: 4) {
+                        Image(systemName: "iphone")
+                        Text(deviceList.selectedDevice?.displayName ?? "Devices")
+                    }
                 }
             }
         }
         .overlay(alignment: .bottom) {
             TransferToastView()
                 .padding()
+        }
+    }
+
+    private func openFilePicker(for device: AndroidDevice) {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.begin { response in
+            guard response == .OK else { return }
+            Task {
+                await fileTransfer.transfer(urls: panel.urls, to: device)
+            }
         }
     }
 }
