@@ -14,7 +14,7 @@ struct AndroidMirrorApp: App {
                 .environmentObject(deviceList)
                 .environmentObject(mirrorSession)
                 .environmentObject(fileTransfer)
-                .frame(minWidth: 960, minHeight: 640)
+                .frame(minWidth: 320, minHeight: 500)
         }
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)

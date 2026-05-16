@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		A10000010000000000000001 /* AndroidMirrorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000001 /* AndroidMirrorApp.swift */; };
 		A10000010000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000002 /* ContentView.swift */; };
-		A10000010000000000000003 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000003 /* SidebarView.swift */; };
 		A10000010000000000000004 /* MirrorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000004 /* MirrorView.swift */; };
 		A10000010000000000000005 /* FileDropOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000005 /* FileDropOverlay.swift */; };
 		A10000010000000000000006 /* ConnectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000006 /* ConnectionSheet.swift */; };
@@ -36,7 +35,6 @@
 /* Begin PBXFileReference section */
 		A20000010000000000000001 /* AndroidMirrorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AndroidMirrorApp.swift; sourceTree = "<group>"; };
 		A20000010000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A20000010000000000000003 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		A20000010000000000000004 /* MirrorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MirrorView.swift; sourceTree = "<group>"; };
 		A20000010000000000000005 /* FileDropOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDropOverlay.swift; sourceTree = "<group>"; };
 		A20000010000000000000006 /* ConnectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionSheet.swift; sourceTree = "<group>"; };
@@ -108,7 +106,6 @@
 			isa = PBXGroup;
 			children = (
 				A20000010000000000000002 /* ContentView.swift */,
-				A20000010000000000000003 /* SidebarView.swift */,
 				A20000010000000000000004 /* MirrorView.swift */,
 				A20000010000000000000005 /* FileDropOverlay.swift */,
 				A20000010000000000000006 /* ConnectionSheet.swift */,
@@ -236,7 +233,6 @@
 			files = (
 				A10000010000000000000001 /* AndroidMirrorApp.swift in Sources */,
 				A10000010000000000000002 /* ContentView.swift in Sources */,
-				A10000010000000000000003 /* SidebarView.swift in Sources */,
 				A10000010000000000000004 /* MirrorView.swift in Sources */,
 				A10000010000000000000005 /* FileDropOverlay.swift in Sources */,
 				A10000010000000000000006 /* ConnectionSheet.swift in Sources */,
