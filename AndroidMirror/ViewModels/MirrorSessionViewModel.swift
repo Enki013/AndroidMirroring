@@ -43,8 +43,15 @@ final class MirrorSessionViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] port in
                 guard let self else { return }
-                self.metalRenderer.connect(port: port)
-                self.statusMessage = "Mirror active"
+                let opts = self.mirrorOptions
+                self.metalRenderer.connect(
+                    port: port,
+                    audioEnabled: opts.audioEnabled,
+                    controlEnabled: opts.controlEnabled
+                )
+                self.statusMessage = opts.videoSource == .camera
+                    ? "Camera active"
+                    : "Mirror active"
             }
 
         // Also observe errors
@@ -97,9 +104,13 @@ final class MirrorSessionViewModel: ObservableObject {
     }
 
     func takeScreenshot(device: AndroidDevice) async {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
+        let timestamp = formatter.string(from: Date())
+
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = "screenshot.png"
+        panel.nameFieldStringValue = "Screenshot_\(timestamp).png"
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         do {

@@ -176,9 +176,17 @@ final class ScrcpyControlChannel: @unchecked Sendable {
         send(data)
     }
 
-    // MARK: - Private
+    // MARK: - Internal (exposed for testing)
 
-    private func send(_ data: Data) {
+    /// Last data packet sent — used by unit tests to verify binary encoding.
+    #if DEBUG
+    private(set) var lastSentData: Data?
+    #endif
+
+    func send(_ data: Data) {
+        #if DEBUG
+        lastSentData = data
+        #endif
         connection?.send(content: data, completion: .contentProcessed { error in
             if let error {
                 print("[ControlChannel] Send error: \(error)")
@@ -186,22 +194,22 @@ final class ScrcpyControlChannel: @unchecked Sendable {
         })
     }
 
-    private func appendUInt64(_ data: inout Data, _ value: UInt64) {
+    func appendUInt64(_ data: inout Data, _ value: UInt64) {
         var be = value.bigEndian
         data.append(contentsOf: withUnsafeBytes(of: &be) { Array($0) })
     }
 
-    private func appendInt32(_ data: inout Data, _ value: Int32) {
+    func appendInt32(_ data: inout Data, _ value: Int32) {
         var be = value.bigEndian
         data.append(contentsOf: withUnsafeBytes(of: &be) { Array($0) })
     }
 
-    private func appendUInt16(_ data: inout Data, _ value: UInt16) {
+    func appendUInt16(_ data: inout Data, _ value: UInt16) {
         var be = value.bigEndian
         data.append(contentsOf: withUnsafeBytes(of: &be) { Array($0) })
     }
 
-    private func appendInt16(_ data: inout Data, _ value: Int16) {
+    func appendInt16(_ data: inout Data, _ value: Int16) {
         var be = value.bigEndian
         data.append(contentsOf: withUnsafeBytes(of: &be) { Array($0) })
     }

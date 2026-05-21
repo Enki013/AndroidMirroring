@@ -7,6 +7,7 @@ struct MirrorView: View {
 
     @State private var mirrorFrame: CGRect = .zero
     @State private var showControls = false
+    @State private var isRotating = false
 
     var body: some View {
         ZStack {
@@ -59,11 +60,27 @@ struct MirrorView: View {
             }
             .onAppear {
                 DispatchQueue.main.async { mirrorFrame = frame }
+                updateWindowFrame(for: mirrorSession.metalRenderer.videoSize)
             }
             .onChange(of: frame) { _, newFrame in
                 DispatchQueue.main.async {
                     mirrorFrame = newFrame
                     mirrorSession.updateMirrorFrame(newFrame)
+                }
+            }
+            .onChange(of: mirrorSession.metalRenderer.videoSize) { oldSize, newSize in
+                guard oldSize != .zero, newSize != .zero else { return }
+                let oldIsLandscape = oldSize.width > oldSize.height
+                let newIsLandscape = newSize.width > newSize.height
+                if oldIsLandscape != newIsLandscape {
+                    isRotating = true
+                    updateWindowFrame(for: newSize)
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isRotating = false
+                        }
+                    }
                 }
             }
         }
@@ -74,10 +91,22 @@ struct MirrorView: View {
         let ratio = size.width > 0 && size.height > 0 ? (size.width / size.height) : (9 / 19.5)
         
         return DeviceChrome(aspectRatio: ratio) {
-            if mirrorSession.isMirroring {
-                MetalVideoView(renderer: mirrorSession.metalRenderer)
-            } else {
-                placeholder(device: device)
+            ZStack {
+                if mirrorSession.isMirroring {
+                    MetalVideoView(renderer: mirrorSession.metalRenderer)
+                } else {
+                    placeholder(device: device)
+                }
+                
+                if isRotating {
+                    ZStack {
+                        Color.black
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 48, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+                    .transition(.opacity)
+                }
             }
         }
         .fileDropOverlay(device: device)
@@ -85,7 +114,27 @@ struct MirrorView: View {
         .padding(.vertical, 8)
     }
 
-
+    private func updateWindowFrame(for size: CGSize) {
+        DispatchQueue.main.async {
+            if let window = NSApp.windows.first(where: { $0.isKeyWindow }) ?? NSApp.windows.first {
+                let ratio = size.width > 0 && size.height > 0 ? (size.width / size.height) : (9 / 19.5)
+                let isLandscape = ratio >= 1
+                let targetWidth = isLandscape ? (420 * ratio) : 420
+                let targetHeight = isLandscape ? (420 + 16) : (420 / ratio + 16)
+                
+                let contentRect = NSRect(x: 0, y: 0, width: targetWidth, height: targetHeight)
+                let windowRect = window.frameRect(forContentRect: contentRect)
+                
+                var frame = window.frame
+                let center = CGPoint(x: frame.midX, y: frame.midY)
+                frame.size = windowRect.size
+                frame.origin = CGPoint(x: center.x - windowRect.width / 2, y: center.y - windowRect.height / 2)
+                
+                window.contentAspectRatio = NSSize(width: targetWidth, height: targetHeight)
+                window.setFrame(frame, display: true, animate: true)
+            }
+        }
+    }
 
     // MARK: - Controls Panel
 
@@ -109,6 +158,39 @@ struct MirrorView: View {
                             }
                         }
                         .pickerStyle(.segmented)
+                    }
+
+                    Divider().padding(.horizontal, 16)
+
+                    // Video source section
+                    controlSection("Source") {
+                        Picker("Source", selection: Binding(
+                            get: { settings.mirrorVideoSource },
+                            set: { newValue in
+                                settings.mirrorVideoSource = newValue
+                                mirrorSession.restartIfNeeded(device: device, frame: mirrorFrame)
+                            }
+                        )) {
+                            ForEach(VideoSource.allCases) { source in
+                                Label(source.title, systemImage: source.icon).tag(source)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        if settings.mirrorVideoSource == .camera {
+                            Picker("Camera", selection: Binding(
+                                get: { settings.mirrorCameraFacing },
+                                set: { newValue in
+                                    settings.mirrorCameraFacing = newValue
+                                    mirrorSession.restartIfNeeded(device: device, frame: mirrorFrame)
+                                }
+                            )) {
+                                ForEach(CameraFacing.allCases) { facing in
+                                    Text(facing.title).tag(facing)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                        }
                     }
 
                     Divider().padding(.horizontal, 16)
@@ -249,7 +331,6 @@ struct DeviceChrome<Content: View>: View {
 
     var body: some View {
         content()
-            .frame(maxWidth: 420)
             .aspectRatio(aspectRatio, contentMode: .fit)
             .background(Color(white: 0.04))
             .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))

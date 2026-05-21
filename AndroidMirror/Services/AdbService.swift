@@ -169,7 +169,7 @@ actor AdbService {
         return Double(percent) / 100.0
     }
 
-    private func parseDevices(lines: [String]) -> [AndroidDevice] {
+    func parseDevices(lines: [String]) -> [AndroidDevice] {
         lines
             .dropFirst()
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
