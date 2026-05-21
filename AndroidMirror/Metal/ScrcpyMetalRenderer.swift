@@ -14,6 +14,7 @@ final class ScrcpyMetalRenderer: ObservableObject {
     private var streamTask: Task<Void, Never>?
     private let decoder = H264Decoder()
     let controlChannel = ScrcpyControlChannel()
+    let audioPlayer = AudioStreamPlayer()
     weak var metalView: MTKView?
 
     init() {
@@ -35,7 +36,7 @@ final class ScrcpyMetalRenderer: ObservableObject {
         }
     }
 
-    func connect(port: UInt16) {
+    func connect(port: UInt16, audioEnabled: Bool = false, controlEnabled: Bool = true) {
         disconnect()
         isConnected = true
         statusText = "Connecting on port \(port)…"
@@ -48,11 +49,29 @@ final class ScrcpyMetalRenderer: ObservableObject {
                 print("[MetalRenderer] Connected! Starting NAL unit stream…")
                 await MainActor.run { self.statusText = "Receiving video…" }
 
-                // Connect the control channel AFTER video connection is established
-                // scrcpy expects connections in order: video, then control
+                // scrcpy expects connections in order: video → audio → control.
                 try await Task.sleep(for: .milliseconds(200))
-                controlChannel.connect(port: port)
-                print("[MetalRenderer] Control channel connecting…")
+
+                // 2nd connection: audio (if enabled)
+                if audioEnabled {
+                    do {
+                        try await audioPlayer.connect(port: port)
+                        print("[MetalRenderer] Audio player connected")
+                    } catch {
+                        print("[MetalRenderer] Audio connection failed (device may not support it): \(error)")
+                        // Non-fatal — continue without audio
+                    }
+                    try await Task.sleep(for: .milliseconds(200))
+                }
+
+                // 3rd connection (or 2nd if no audio): control
+                // Disabled in camera mode — touch events are meaningless for camera source.
+                if controlEnabled {
+                    controlChannel.connect(port: port)
+                    print("[MetalRenderer] Control channel connecting…")
+                } else {
+                    print("[MetalRenderer] Control channel skipped (camera mode)")
+                }
 
                 var nalCount = 0
                 for try await nalUnit in reader.nalUnits() {
@@ -86,6 +105,7 @@ final class ScrcpyMetalRenderer: ObservableObject {
         streamTask?.cancel()
         streamTask = nil
         decoder.invalidate()
+        audioPlayer.disconnect()
         controlChannel.disconnect()
         isConnected = false
         latestPixelBuffer = nil
@@ -217,7 +237,7 @@ final class ScrcpyRawStreamReader: @unchecked Sendable {
     /// Finds the next complete NAL unit in the buffer (between two start codes).
     /// Removes the consumed bytes from the buffer.
     /// Returns nil if there isn't a complete NAL unit yet.
-    private static func extractNextNAL(from buffer: inout Data) -> Data? {
+    static func extractNextNAL(from buffer: inout Data) -> Data? {
         let bytes = [UInt8](buffer)
         guard bytes.count > 4 else { return nil }
 
@@ -242,7 +262,7 @@ final class ScrcpyRawStreamReader: @unchecked Sendable {
     }
 
     /// Extracts the last NAL unit from the buffer (when stream ends).
-    private static func extractLastNAL(from buffer: inout Data) -> Data? {
+    static func extractLastNAL(from buffer: inout Data) -> Data? {
         let bytes = [UInt8](buffer)
         guard let firstStart = findStartCode(in: bytes, from: 0) else { return nil }
         let nalStart = firstStart.offset + firstStart.length
@@ -253,7 +273,7 @@ final class ScrcpyRawStreamReader: @unchecked Sendable {
     }
 
     /// Finds a start code (00 00 00 01 or 00 00 01) starting from the given offset.
-    private static func findStartCode(in bytes: [UInt8], from offset: Int) -> (offset: Int, length: Int)? {
+    static func findStartCode(in bytes: [UInt8], from offset: Int) -> (offset: Int, length: Int)? {
         var i = offset
         while i + 2 < bytes.count {
             if bytes[i] == 0 && bytes[i + 1] == 0 {

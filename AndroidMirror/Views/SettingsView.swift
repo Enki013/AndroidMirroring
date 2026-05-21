@@ -23,7 +23,46 @@ struct SettingsView: View {
                         .tag(preset)
                     }
                 }
+
+                Picker("Video source", selection: Binding(
+                    get: { settings.mirrorVideoSource },
+                    set: { settings.mirrorVideoSource = $0 }
+                )) {
+                    ForEach(VideoSource.allCases) { source in
+                        Label(source.title, systemImage: source.icon)
+                            .tag(source)
+                    }
+                }
+
+                if settings.mirrorVideoSource == .camera {
+                    Picker("Camera", selection: Binding(
+                        get: { settings.mirrorCameraFacing },
+                        set: { settings.mirrorCameraFacing = $0 }
+                    )) {
+                        ForEach(CameraFacing.allCases) { facing in
+                            Label(facing.title, systemImage: facing.icon)
+                                .tag(facing)
+                        }
+                    }
+
+                    Stepper(
+                        "Camera FPS: \(settings.mirrorCameraFps)",
+                        value: $settings.mirrorCameraFps,
+                        in: 15...60,
+                        step: 5
+                    )
+
+                    Text("Camera requires Android 12+. Touch controls are disabled in camera mode.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Toggle("Forward audio", isOn: $settings.mirrorAudioEnabled)
+                if settings.mirrorVideoSource == .camera && settings.mirrorAudioEnabled {
+                    Text("Audio source: Microphone")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Toggle("Turn device screen off while mirroring", isOn: $settings.mirrorTurnScreenOff)
             }
 
