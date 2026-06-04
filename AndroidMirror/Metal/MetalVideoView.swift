@@ -1,3 +1,4 @@
+import AppKit
 import CoreImage
 import MetalKit
 import SwiftUI
@@ -99,6 +100,7 @@ class InteractiveMTKView: MTKView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
         guard let (x, y) = deviceCoordinates(for: event) else { return }
         controlChannel?.sendTouch(action: .down, x: x, y: y)
     }
@@ -133,6 +135,201 @@ class InteractiveMTKView: MTKView {
 
     override func rightMouseUp(with event: NSEvent) {
         controlChannel?.sendBackOrScreenOn(action: .up)
+    }
+
+    override func otherMouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        guard event.buttonNumber == 2 else {
+            super.otherMouseDown(with: event)
+            return
+        }
+        controlChannel?.sendKeycode(action: .down, keycode: .home)
+    }
+
+    override func otherMouseUp(with event: NSEvent) {
+        guard event.buttonNumber == 2 else {
+            super.otherMouseUp(with: event)
+            return
+        }
+        controlChannel?.sendKeycode(action: .up, keycode: .home)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if handleClipboardShortcut(event) {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if handleClipboardShortcut(event) {
+            return
+        }
+
+        if handleControlShortcut(event, action: .down) {
+            return
+        }
+
+        if handleSpecialKey(event, action: .down) {
+            return
+        }
+
+        if let text = injectableText(from: event) {
+            controlChannel?.sendText(text)
+            return
+        }
+
+        super.keyDown(with: event)
+    }
+
+    override func keyUp(with event: NSEvent) {
+        if handleControlShortcut(event, action: .up) {
+            return
+        }
+
+        if handleSpecialKey(event, action: .up) {
+            return
+        }
+
+        super.keyUp(with: event)
+    }
+
+    private func handleClipboardShortcut(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown,
+              event.modifierFlags.contains(.command),
+              !event.modifierFlags.contains(.control),
+              let key = event.charactersIgnoringModifiers?.lowercased()
+        else { return false }
+
+        switch key {
+        case "c":
+            controlChannel?.sendGetClipboard(copyKey: .copy)
+            return true
+        case "x":
+            controlChannel?.sendGetClipboard(copyKey: .cut)
+            return true
+        case "v":
+            let text = NSPasteboard.general.string(forType: .string) ?? ""
+            if event.modifierFlags.contains(.shift) {
+                controlChannel?.sendText(text)
+            } else {
+                controlChannel?.sendSetClipboard(text: text, paste: true)
+            }
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func handleControlShortcut(_ event: NSEvent, action: ScrcpyControlChannel.KeyAction) -> Bool {
+        guard event.modifierFlags.contains(.control),
+              !event.modifierFlags.contains(.command),
+              let keycode = letterKeycode(from: event)
+        else { return false }
+
+        if action == .down, keycode == .v, !event.isARepeat {
+            let text = NSPasteboard.general.string(forType: .string) ?? ""
+            controlChannel?.sendSetClipboard(text: text, paste: false)
+        }
+
+        controlChannel?.sendKeycode(
+            action: action,
+            keycode: keycode,
+            repeatCount: event.isARepeat && action == .down ? 1 : 0,
+            metaState: metaState(from: event)
+        )
+        return true
+    }
+
+    private func handleSpecialKey(_ event: NSEvent, action: ScrcpyControlChannel.KeyAction) -> Bool {
+        guard !event.modifierFlags.contains(.command),
+              let keycode = specialKeycode(from: event)
+        else { return false }
+
+        controlChannel?.sendKeycode(
+            action: action,
+            keycode: keycode,
+            repeatCount: event.isARepeat && action == .down ? 1 : 0,
+            metaState: metaState(from: event)
+        )
+        return true
+    }
+
+    private func injectableText(from event: NSEvent) -> String? {
+        guard !event.modifierFlags.contains(.command),
+              !event.modifierFlags.contains(.control),
+              let text = event.characters,
+              !text.isEmpty
+        else { return nil }
+
+        let hasOnlyPrintableScalars = text.unicodeScalars.allSatisfy { scalar in
+            scalar.value >= 0x20 && scalar.value != 0x7F
+        }
+        return hasOnlyPrintableScalars ? text : nil
+    }
+
+    private func specialKeycode(from event: NSEvent) -> ScrcpyControlChannel.AndroidKeycode? {
+        switch event.keyCode {
+        case 36, 76: return .enter
+        case 48: return .tab
+        case 51: return .delete
+        case 53: return .escape
+        case 117: return .forwardDelete
+        case 123: return .dpadLeft
+        case 124: return .dpadRight
+        case 125: return .dpadDown
+        case 126: return .dpadUp
+        case 115: return .moveHome
+        case 119: return .moveEnd
+        case 116: return .pageUp
+        case 121: return .pageDown
+        default: return nil
+        }
+    }
+
+    private func letterKeycode(from event: NSEvent) -> ScrcpyControlChannel.AndroidKeycode? {
+        guard let key = event.charactersIgnoringModifiers?.lowercased(), key.count == 1 else {
+            return nil
+        }
+
+        switch key {
+        case "a": return .a
+        case "b": return .b
+        case "c": return .c
+        case "d": return .d
+        case "e": return .e
+        case "f": return .f
+        case "g": return .g
+        case "h": return .h
+        case "i": return .i
+        case "j": return .j
+        case "k": return .k
+        case "l": return .l
+        case "m": return .m
+        case "n": return .n
+        case "o": return .o
+        case "p": return .p
+        case "q": return .q
+        case "r": return .r
+        case "s": return .s
+        case "t": return .t
+        case "u": return .u
+        case "v": return .v
+        case "w": return .w
+        case "x": return .x
+        case "y": return .y
+        case "z": return .z
+        default: return nil
+        }
+    }
+
+    private func metaState(from event: NSEvent) -> ScrcpyControlChannel.MetaState {
+        var state: ScrcpyControlChannel.MetaState = []
+        if event.modifierFlags.contains(.shift) { state.insert(.shift) }
+        if event.modifierFlags.contains(.option) { state.insert(.alt) }
+        if event.modifierFlags.contains(.control) { state.insert(.control) }
+        if event.modifierFlags.contains(.command) { state.insert(.command) }
+        return state
     }
 }
 
