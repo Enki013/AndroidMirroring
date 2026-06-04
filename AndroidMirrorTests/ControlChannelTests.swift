@@ -28,6 +28,24 @@ final class ControlChannelTests: XCTestCase {
         return b0 | b1
     }
 
+    /// Read a big-endian UInt32 from Data at the given offset (alignment-safe).
+    private func readUInt32(_ data: Data, at offset: Int) -> UInt32 {
+        let b0 = UInt32(data[offset])     << 24
+        let b1 = UInt32(data[offset + 1]) << 16
+        let b2 = UInt32(data[offset + 2]) << 8
+        let b3 = UInt32(data[offset + 3])
+        return b0 | b1 | b2 | b3
+    }
+
+    /// Read a big-endian UInt64 from Data at the given offset (alignment-safe).
+    private func readUInt64(_ data: Data, at offset: Int) -> UInt64 {
+        var value: UInt64 = 0
+        for index in 0..<8 {
+            value = (value << 8) | UInt64(data[offset + index])
+        }
+        return value
+    }
+
     /// Read a big-endian Int32 from Data at the given offset (alignment-safe).
     private func readInt32(_ data: Data, at offset: Int) -> Int32 {
         let b0 = Int32(data[offset])     << 24
@@ -61,6 +79,12 @@ final class ControlChannelTests: XCTestCase {
         var data = Data()
         channel.appendUInt16(&data, 0x0438)  // 1080
         XCTAssertEqual(data, Data([0x04, 0x38]))
+    }
+
+    func testBigEndianUInt32() {
+        var data = Data()
+        channel.appendUInt32(&data, 0x01020304)
+        XCTAssertEqual(data, Data([0x01, 0x02, 0x03, 0x04]))
     }
 
     func testBigEndianInt16() {
@@ -172,6 +196,73 @@ final class ControlChannelTests: XCTestCase {
         XCTAssertEqual(readInt32(data, at: 2), 4) // BACK keycode
         XCTAssertEqual(readInt32(data, at: 6), 0) // repeat
         XCTAssertEqual(readInt32(data, at: 10), 0) // metaState
+        #endif
+    }
+
+    func testKeycodeWithMetaState() {
+        channel.sendKeycode(action: .down, keycode: .v, metaState: [.control])
+
+        #if DEBUG
+        guard let data = channel.lastSentData else {
+            XCTFail("No data sent"); return
+        }
+        XCTAssertEqual(data.count, 14)
+        XCTAssertEqual(data[0], 0)
+        XCTAssertEqual(readInt32(data, at: 2), 50) // V keycode
+        XCTAssertEqual(readInt32(data, at: 10), 0x1000) // AMETA_CTRL_ON
+        #endif
+    }
+
+    func testInjectTextPacket() {
+        channel.sendText("Hello")
+
+        #if DEBUG
+        guard let data = channel.lastSentData else {
+            XCTFail("No data sent"); return
+        }
+        XCTAssertEqual(data.count, 10)
+        XCTAssertEqual(data[0], 1) // INJECT_TEXT
+        XCTAssertEqual(readUInt32(data, at: 1), 5)
+        XCTAssertEqual(String(data: data.subdata(in: 5..<10), encoding: .utf8), "Hello")
+        #endif
+    }
+
+    func testInjectTextTruncatesAtUtf8Boundary() {
+        channel.sendText(String(repeating: "é", count: 200))
+
+        #if DEBUG
+        guard let data = channel.lastSentData else {
+            XCTFail("No data sent"); return
+        }
+        XCTAssertEqual(data[0], 1)
+        XCTAssertLessThanOrEqual(Int(readUInt32(data, at: 1)), 300)
+        XCTAssertNotNil(String(data: data.subdata(in: 5..<data.count), encoding: .utf8))
+        #endif
+    }
+
+    func testGetClipboardPacket() {
+        channel.sendGetClipboard(copyKey: .copy)
+
+        #if DEBUG
+        guard let data = channel.lastSentData else {
+            XCTFail("No data sent"); return
+        }
+        XCTAssertEqual(data, Data([8, 1]))
+        #endif
+    }
+
+    func testSetClipboardPacket() {
+        channel.sendSetClipboard(text: "Paste", paste: true, sequence: 0x0102030405060708)
+
+        #if DEBUG
+        guard let data = channel.lastSentData else {
+            XCTFail("No data sent"); return
+        }
+        XCTAssertEqual(data[0], 9) // SET_CLIPBOARD
+        XCTAssertEqual(readUInt64(data, at: 1), 0x0102030405060708)
+        XCTAssertEqual(data[9], 1)
+        XCTAssertEqual(readUInt32(data, at: 10), 5)
+        XCTAssertEqual(String(data: data.subdata(in: 14..<19), encoding: .utf8), "Paste")
         #endif
     }
 
