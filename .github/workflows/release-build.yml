@@ -33,10 +33,7 @@ jobs:
             -scheme AndroidMirror \
             -configuration Release \
             -destination 'generic/platform=macOS' \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            -derivedDataPath build/DerivedData
 
       - name: Create DMG
         run: |

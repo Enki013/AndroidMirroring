@@ -45,6 +45,8 @@ struct ContentView: View {
                 Menu {
                     if deviceList.isLoading && deviceList.devices.isEmpty {
                         Text("Searching...")
+                    } else if let errorMessage = deviceList.errorMessage, deviceList.devices.isEmpty {
+                        Text(errorMessage)
                     } else if deviceList.devices.isEmpty {
                         Text("No Devices")
                     } else {

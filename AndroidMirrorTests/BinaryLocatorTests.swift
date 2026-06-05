@@ -36,4 +36,18 @@ final class BinaryLocatorTests: XCTestCase {
                           "PATH should contain the Binaries directory: \(binDir)")
         }
     }
+
+    func testRunLinesThrowsOnNonZeroExit() async {
+        let executable = URL(fileURLWithPath: "/bin/sh")
+
+        do {
+            _ = try await ProcessRunner.runLines(
+                executable: executable,
+                arguments: ["-c", "echo failure >&2; exit 2"]
+            )
+            XCTFail("Expected runLines to throw for a non-zero exit code")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("failure"))
+        }
+    }
 }
