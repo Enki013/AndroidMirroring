@@ -38,22 +38,30 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
-      - name: Package app
+      - name: Create DMG
         run: |
-          mkdir -p build/release
-          ditto -c -k --sequesterRsrc --keepParent \
+          rm -rf build/dmg-root build/release
+          mkdir -p build/dmg-root build/release
+          ditto \
             "build/DerivedData/Build/Products/Release/Android Mirror.app" \
-            "build/release/AndroidMirror-macOS.zip"
+            "build/dmg-root/Android Mirror.app"
+          ln -s /Applications "build/dmg-root/Applications"
+          hdiutil create \
+            -volname "Android Mirror" \
+            -srcfolder "build/dmg-root" \
+            -ov \
+            -format UDZO \
+            "build/release/AndroidMirror-macOS.dmg"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: AndroidMirror-macOS
-          path: build/release/AndroidMirror-macOS.zip
+          path: build/release/AndroidMirror-macOS.dmg
           if-no-files-found: error
 
       - name: Attach to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/release/AndroidMirror-macOS.zip
+          files: build/release/AndroidMirror-macOS.dmg
