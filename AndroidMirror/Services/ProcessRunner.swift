@@ -8,6 +8,20 @@ struct ProcessResult {
     var succeeded: Bool { exitCode == 0 }
 }
 
+enum ProcessRunnerError: LocalizedError {
+    case commandFailed(exitCode: Int32, output: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .commandFailed(let exitCode, let output):
+            if output.isEmpty {
+                return "Process failed with exit code \(exitCode)."
+            }
+            return output
+        }
+    }
+}
+
 enum ProcessRunner {
     static func run(
         executable: URL,
@@ -56,6 +70,10 @@ enum ProcessRunner {
         environment: [String: String]? = nil
     ) async throws -> [String] {
         let result = try await run(executable: executable, arguments: arguments, environment: environment)
+        guard result.succeeded else {
+            let message = result.stderr.isEmpty ? result.stdout : result.stderr
+            throw ProcessRunnerError.commandFailed(exitCode: result.exitCode, output: message)
+        }
         return result.stdout
             .split(separator: "\n", omittingEmptySubsequences: false)
             .map(String.init)
