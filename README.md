@@ -2,6 +2,13 @@
 
 Native macOS app for mirroring and controlling Android devices, built on [scrcpy](https://github.com/Genymobile/scrcpy) with an iPhone Mirroring–inspired interface.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/device-menu.jpg" alt="Android Mirror device menu" width="420">
+  <img src="docs/screenshots/mirror-controls.jpg" alt="Android Mirror mirroring controls" width="420">
+</p>
+
 ## Features
 
 - Device list with USB and wireless (ADB) connections
