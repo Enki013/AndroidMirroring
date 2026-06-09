@@ -28,13 +28,6 @@ echo "Copying resources…"
 cp -R "$SRC/Resources/Binaries" "$APP_DIR/Contents/Resources/" 2>/dev/null || {
   echo "Warning: Binaries missing. Run scripts/fetch-binaries.sh"
 }
-if [ -d "$SRC/Resources/Assets.xcassets" ]; then
-  xcrun actool "$SRC/Resources/Assets.xcassets" \
-    --compile "$APP_DIR/Contents/Resources" \
-    --platform macosx \
-    --minimum-deployment-target 14.0 \
-    --app-icon AppIcon 2>/dev/null || cp -R "$SRC/Resources/Assets.xcassets" "$APP_DIR/Contents/Resources/"
-fi
 
 cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -62,6 +55,22 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 </dict>
 </plist>
 PLIST
+
+if [ -d "$SRC/Resources/Assets.xcassets" ]; then
+  echo "Compiling asset catalog…"
+  ASSET_INFO="$BUILD_DIR/asset-info.plist"
+  xcrun actool "$SRC/Resources/Assets.xcassets" \
+    --compile "$APP_DIR/Contents/Resources" \
+    --platform macosx \
+    --minimum-deployment-target 14.0 \
+    --app-icon AppIcon \
+    --output-partial-info-plist "$ASSET_INFO"
+
+  /usr/libexec/PlistBuddy -c "Delete :CFBundleIconFile" "$APP_DIR/Contents/Info.plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Delete :CFBundleIconName" "$APP_DIR/Contents/Info.plist" 2>/dev/null || true
+  /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$APP_DIR/Contents/Info.plist"
+  /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$APP_DIR/Contents/Info.plist"
+fi
 
 echo "Built: $APP_DIR"
 echo "Run: open \"$APP_DIR\""
