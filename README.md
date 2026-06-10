@@ -4,10 +4,16 @@ Native macOS app for mirroring and controlling Android devices, built on [scrcpy
 
 ## Screenshots
 
-<p align="center">
-  <img src="docs/screenshots/device-menu.jpg" alt="Android Mirror device menu" width="420">
-  <img src="docs/screenshots/mirror-controls.jpg" alt="Android Mirror mirroring controls" width="420">
-</p>
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/device-menu.jpg" alt="Android Mirror device menu" width="100%">
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/screenshots/mirror-controls.jpg" alt="Android Mirror mirroring controls" width="100%">
+    </td>
+  </tr>
+</table>
 
 ## Features
 
