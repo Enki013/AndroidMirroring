@@ -18,11 +18,12 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Downloading scrcpy v4.0 for $ARCH…"
+echo "Downloading scrcpy v4.0 for ${ARCH}..."
 curl -fsSL -o "$TMP/scrcpy.tar.gz" "$URL"
 tar -xzf "$TMP/scrcpy.tar.gz" -C "$TMP"
 
 cp "$TMP/$DIR/scrcpy" "$TMP/$DIR/adb" "$TMP/$DIR/scrcpy-server" "$DEST/"
+cp "$TMP/$DIR/scrcpy.png" "$TMP/$DIR/disconnected.png" "$DEST/"
 chmod +x "$DEST/scrcpy" "$DEST/adb"
 
 echo "Installed to $DEST"

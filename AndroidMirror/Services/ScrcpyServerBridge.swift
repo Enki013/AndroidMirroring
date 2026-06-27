@@ -42,8 +42,11 @@ final class ScrcpyServerBridge: ObservableObject {
                 // Step 3: Start the server process on device
                 try startServerProcess(serial: serial, options: options)
 
-                // Give the server a moment to initialize
-                try await Task.sleep(for: .milliseconds(500))
+                // Give adb forward enough time to attach to the device-side local socket.
+                // If the desktop connects too early, adb accepts the TCP connection but the
+                // remote localabstract socket is not ready yet; the first video socket then
+                // closes with 0 bytes, leaving the mirror stuck on the grey placeholder.
+                try await Task.sleep(for: .milliseconds(1000))
 
                 await MainActor.run {
                     self.videoPort = localPort
@@ -67,8 +70,9 @@ final class ScrcpyServerBridge: ObservableObject {
 
         // Remove adb forward
         if forwardedPort > 0, let serial = deviceSerial {
+            let localPort = forwardedPort
             Task {
-                try? await removeForward(serial: serial, localPort: forwardedPort)
+                try? await removeForward(serial: serial, localPort: localPort)
             }
         }
 
