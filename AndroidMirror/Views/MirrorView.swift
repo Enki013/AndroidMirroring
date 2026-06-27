@@ -7,8 +7,6 @@ struct MirrorView: View {
 
     @State private var mirrorFrame: CGRect = .zero
     @State private var showControls = false
-    @State private var showHoverChrome = false
-    @State private var hideHoverChromeWorkItem: DispatchWorkItem?
     @State private var isRotating = false
 
     var body: some View {
@@ -92,130 +90,28 @@ struct MirrorView: View {
         let size = mirrorSession.metalRenderer.videoSize
         let ratio = size.width > 0 && size.height > 0 ? (size.width / size.height) : (9 / 19.5)
         
-        return ZStack(alignment: .top) {
-            DeviceChrome(aspectRatio: ratio, isChromeVisible: showHoverChrome) {
-                ZStack {
-                    if mirrorSession.isMirroring {
-                        MetalVideoView(renderer: mirrorSession.metalRenderer)
-                    } else {
-                        placeholder(device: device)
-                    }
-                    
-                    if isRotating {
-                        ZStack {
-                            Color.black
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.system(size: 48, weight: .medium))
-                                .foregroundStyle(.white)
-                        }
-                        .transition(.opacity)
-                    }
+        return DeviceChrome(aspectRatio: ratio) {
+            ZStack {
+                if mirrorSession.isMirroring {
+                    MetalVideoView(renderer: mirrorSession.metalRenderer)
+                } else {
+                    placeholder(device: device)
                 }
-            }
-
-            VStack(spacing: 0) {
-                hoverChromeToolbar
-                    .padding(.horizontal, 14)
-                    .padding(.top, 14)
-                    .opacity(showHoverChrome ? 1 : 0)
-                    .offset(y: showHoverChrome ? 0 : -14)
-                    .allowsHitTesting(showHoverChrome)
-                    .onHover { hovering in
-                        hovering ? revealHoverChrome() : scheduleHideHoverChrome()
+                
+                if isRotating {
+                    ZStack {
+                        Color.black
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 48, weight: .medium))
+                            .foregroundStyle(.white)
                     }
-
-                Spacer(minLength: 0)
-            }
-            .animation(.spring(response: 0.24, dampingFraction: 0.86), value: showHoverChrome)
-
-            VStack(spacing: 0) {
-                Color.clear
-                    .frame(height: 72)
-                    .contentShape(Rectangle())
-                    .onHover { hovering in
-                        hovering ? revealHoverChrome() : scheduleHideHoverChrome()
-                    }
-                Spacer(minLength: 0)
+                    .transition(.opacity)
+                }
             }
         }
         .fileDropOverlay(device: device)
         .padding(.horizontal, 0)
         .padding(.vertical, 8)
-    }
-
-    private var hoverChromeToolbar: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 7) {
-                trafficLight(color: .red.opacity(0.95))
-                trafficLight(color: .yellow.opacity(0.95))
-                trafficLight(color: .green.opacity(0.95))
-            }
-            .padding(.leading, 4)
-
-            Spacer(minLength: 18)
-
-            hoverChromeButton("Home Screen", icon: "square.grid.3x3.fill") {
-                mirrorSession.metalRenderer.controlChannel.sendKeyPress(.home)
-            }
-
-            hoverChromeButton("App Switcher", icon: "rectangle.on.rectangle") {
-                mirrorSession.metalRenderer.controlChannel.sendKeyPress(.appSwitch)
-            }
-
-            hoverChromeButton("Controls", icon: "slider.horizontal.3") {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                    showControls.toggle()
-                }
-            }
-        }
-        .frame(height: 52)
-        .padding(.horizontal, 12)
-        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(.white.opacity(0.16), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.22), radius: 18, y: 8)
-    }
-
-    private func trafficLight(color: Color) -> some View {
-        Circle()
-            .fill(color)
-            .frame(width: 11, height: 11)
-            .overlay(Circle().stroke(.black.opacity(0.16), lineWidth: 0.5))
-    }
-
-    private func hoverChromeButton(_ label: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.white.opacity(0.9))
-                .frame(width: 34, height: 30)
-                .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .help(label)
-        .accessibilityLabel(label)
-    }
-
-    private func revealHoverChrome() {
-        hideHoverChromeWorkItem?.cancel()
-        hideHoverChromeWorkItem = nil
-        withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
-            showHoverChrome = true
-        }
-    }
-
-    private func scheduleHideHoverChrome() {
-        hideHoverChromeWorkItem?.cancel()
-        let item = DispatchWorkItem {
-            withAnimation(.easeOut(duration: 0.18)) {
-                showHoverChrome = false
-            }
-        }
-        hideHoverChromeWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9, execute: item)
     }
 
     private func updateWindowFrame(for size: CGSize) {
@@ -431,30 +327,25 @@ struct MirrorView: View {
 
 struct DeviceChrome<Content: View>: View {
     let aspectRatio: CGFloat
-    var isChromeVisible = false
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         content()
             .aspectRatio(aspectRatio, contentMode: .fit)
             .background(Color(white: 0.04))
-            .clipShape(RoundedRectangle(cornerRadius: isChromeVisible ? 32 : 28, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: isChromeVisible ? 32 : 28, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
-                            colors: [
-                                .white.opacity(isChromeVisible ? 0.34 : 0.25),
-                                .white.opacity(isChromeVisible ? 0.11 : 0.05)
-                            ],
+                            colors: [.white.opacity(0.25), .white.opacity(0.05)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
                         lineWidth: 1.5
                     )
             )
-            .shadow(color: .black.opacity(isChromeVisible ? 0.58 : 0.5), radius: isChromeVisible ? 48 : 40, y: isChromeVisible ? 24 : 20)
-            .animation(.spring(response: 0.24, dampingFraction: 0.86), value: isChromeVisible)
+            .shadow(color: .black.opacity(0.5), radius: 40, y: 20)
     }
 }
 
