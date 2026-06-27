@@ -94,6 +94,11 @@ struct MirrorView: View {
         
         return ZStack(alignment: .top) {
             DeviceChrome(aspectRatio: ratio, isChromeVisible: showHoverChrome) {
+                hoverChromeTitlebar
+                    .onHover { hovering in
+                        hovering ? revealHoverChrome() : scheduleHideHoverChrome()
+                    }
+            } content: {
                 ZStack {
                     if mirrorSession.isMirroring {
                         MetalVideoView(renderer: mirrorSession.metalRenderer)
@@ -114,24 +119,10 @@ struct MirrorView: View {
             }
 
             VStack(spacing: 0) {
-                hoverChromeToolbar
-                    .padding(.horizontal, 14)
-                    .padding(.top, 14)
-                    .opacity(showHoverChrome ? 1 : 0)
-                    .offset(y: showHoverChrome ? 0 : -14)
-                    .allowsHitTesting(showHoverChrome)
-                    .onHover { hovering in
-                        hovering ? revealHoverChrome() : scheduleHideHoverChrome()
-                    }
-
-                Spacer(minLength: 0)
-            }
-            .animation(.spring(response: 0.24, dampingFraction: 0.86), value: showHoverChrome)
-
-            VStack(spacing: 0) {
                 Color.clear
-                    .frame(height: 72)
+                    .frame(height: 76)
                     .contentShape(Rectangle())
+                    .allowsHitTesting(!showHoverChrome)
                     .onHover { hovering in
                         hovering ? revealHoverChrome() : scheduleHideHoverChrome()
                     }
@@ -143,14 +134,14 @@ struct MirrorView: View {
         .padding(.vertical, 8)
     }
 
-    private var hoverChromeToolbar: some View {
+    private var hoverChromeTitlebar: some View {
         HStack(spacing: 10) {
             HStack(spacing: 7) {
                 trafficLight(color: .red.opacity(0.95))
                 trafficLight(color: .yellow.opacity(0.95))
                 trafficLight(color: .green.opacity(0.95))
             }
-            .padding(.leading, 4)
+            .padding(.leading, 6)
 
             Spacer(minLength: 18)
 
@@ -168,14 +159,14 @@ struct MirrorView: View {
                 }
             }
         }
-        .frame(height: 52)
-        .padding(.horizontal, 12)
-        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(.white.opacity(0.16), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.22), radius: 18, y: 8)
+        .frame(height: 58)
+        .padding(.horizontal, 13)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(.white.opacity(0.10))
+                .frame(height: 1)
+        }
     }
 
     private func trafficLight(color: Color) -> some View {
@@ -191,8 +182,8 @@ struct MirrorView: View {
                 .font(.system(size: 14, weight: .semibold))
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(.white.opacity(0.9))
-                .frame(width: 34, height: 30)
-                .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .frame(width: 32, height: 28)
+                .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
         .help(label)
@@ -429,32 +420,46 @@ struct MirrorView: View {
 
 // MARK: - Device Chrome
 
-struct DeviceChrome<Content: View>: View {
+struct DeviceChrome<Chrome: View, Content: View>: View {
     let aspectRatio: CGFloat
     var isChromeVisible = false
+    @ViewBuilder var chrome: () -> Chrome
     @ViewBuilder var content: () -> Content
 
+    private var chromeHeight: CGFloat {
+        isChromeVisible ? 58 : 0
+    }
+
     var body: some View {
-        content()
-            .aspectRatio(aspectRatio, contentMode: .fit)
-            .background(Color(white: 0.04))
-            .clipShape(RoundedRectangle(cornerRadius: isChromeVisible ? 32 : 28, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: isChromeVisible ? 32 : 28, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                .white.opacity(isChromeVisible ? 0.34 : 0.25),
-                                .white.opacity(isChromeVisible ? 0.11 : 0.05)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.5
-                    )
-            )
-            .shadow(color: .black.opacity(isChromeVisible ? 0.58 : 0.5), radius: isChromeVisible ? 48 : 40, y: isChromeVisible ? 24 : 20)
-            .animation(.spring(response: 0.24, dampingFraction: 0.86), value: isChromeVisible)
+        VStack(spacing: 0) {
+            chrome()
+                .frame(height: chromeHeight)
+                .opacity(isChromeVisible ? 1 : 0)
+                .offset(y: isChromeVisible ? 0 : -18)
+                .clipped()
+
+            content()
+                .aspectRatio(aspectRatio, contentMode: .fit)
+                .background(Color(white: 0.04))
+        }
+        .background(Color(white: 0.04))
+        .clipShape(RoundedRectangle(cornerRadius: isChromeVisible ? 32 : 28, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: isChromeVisible ? 32 : 28, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(isChromeVisible ? 0.34 : 0.25),
+                            .white.opacity(isChromeVisible ? 0.11 : 0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .shadow(color: .black.opacity(isChromeVisible ? 0.58 : 0.5), radius: isChromeVisible ? 48 : 40, y: isChromeVisible ? 24 : 20)
+        .animation(.spring(response: 0.24, dampingFraction: 0.86), value: isChromeVisible)
     }
 }
 
