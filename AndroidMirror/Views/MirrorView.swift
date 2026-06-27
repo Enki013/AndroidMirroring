@@ -108,10 +108,60 @@ struct MirrorView: View {
                     .transition(.opacity)
                 }
             }
+        } frameControls: {
+            frameChromeControls
         }
         .fileDropOverlay(device: device)
         .padding(.horizontal, 0)
         .padding(.vertical, 8)
+    }
+
+    private var frameChromeControls: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 7) {
+                trafficLight(color: .red.opacity(0.95))
+                trafficLight(color: .yellow.opacity(0.95))
+                trafficLight(color: .green.opacity(0.95))
+            }
+            .padding(.leading, 2)
+
+            Spacer(minLength: 18)
+
+            frameChromeButton("Home Screen", icon: "square.grid.3x3.fill") {
+                mirrorSession.metalRenderer.controlChannel.sendKeyPress(.home)
+            }
+
+            frameChromeButton("App Switcher", icon: "rectangle.on.rectangle") {
+                mirrorSession.metalRenderer.controlChannel.sendKeyPress(.appSwitch)
+            }
+
+            frameChromeButton("Controls", icon: "slider.horizontal.3") {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    showControls.toggle()
+                }
+            }
+        }
+    }
+
+    private func trafficLight(color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: 11, height: 11)
+            .overlay(Circle().stroke(.black.opacity(0.16), lineWidth: 0.5))
+    }
+
+    private func frameChromeButton(_ label: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(width: 32, height: 28)
+                .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(label)
+        .accessibilityLabel(label)
     }
 
     private func updateWindowFrame(for size: CGSize) {
@@ -325,27 +375,68 @@ struct MirrorView: View {
 
 // MARK: - Device Chrome
 
-struct DeviceChrome<Content: View>: View {
+struct DeviceChrome<Content: View, FrameControls: View>: View {
     let aspectRatio: CGFloat
     @ViewBuilder var content: () -> Content
+    @ViewBuilder var frameControls: () -> FrameControls
+
+    @State private var isExpanded = false
+
+    private var topFrameHeight: CGFloat { isExpanded ? 52 : 0 }
+    private var sideFrameWidth: CGFloat { isExpanded ? 10 : 0 }
+    private var bottomFrameHeight: CGFloat { isExpanded ? 10 : 0 }
+    private var cornerRadius: CGFloat { isExpanded ? 32 : 28 }
 
     var body: some View {
-        content()
-            .aspectRatio(aspectRatio, contentMode: .fit)
-            .background(Color(white: 0.04))
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(
-                        LinearGradient(
-                            colors: [.white.opacity(0.25), .white.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.5
-                    )
+        VStack(spacing: 0) {
+            frameControls()
+                .frame(height: topFrameHeight)
+                .padding(.horizontal, sideFrameWidth)
+                .opacity(isExpanded ? 1 : 0)
+                .offset(y: isExpanded ? 0 : -18)
+                .clipped()
+
+            content()
+                .aspectRatio(aspectRatio, contentMode: .fit)
+                .background(Color(white: 0.04))
+                .clipShape(RoundedRectangle(cornerRadius: max(cornerRadius - sideFrameWidth, 22), style: .continuous))
+                .padding(.horizontal, sideFrameWidth)
+                .padding(.bottom, bottomFrameHeight)
+        }
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(white: 0.08).opacity(isExpanded ? 0.98 : 0.70),
+                    Color(white: 0.035).opacity(0.98)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
             )
-            .shadow(color: .black.opacity(0.5), radius: 40, y: 20)
+        )
+        .background(.ultraThinMaterial.opacity(isExpanded ? 1 : 0))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(isExpanded ? 0.36 : 0.25),
+                            .white.opacity(isExpanded ? 0.12 : 0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: isExpanded ? 1.8 : 1.5
+                )
+        )
+        .shadow(color: .black.opacity(isExpanded ? 0.58 : 0.5), radius: isExpanded ? 48 : 40, y: isExpanded ? 24 : 20)
+        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
+                isExpanded = hovering
+            }
+        }
+        .animation(.spring(response: 0.24, dampingFraction: 0.86), value: isExpanded)
     }
 }
 
