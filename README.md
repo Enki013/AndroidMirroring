@@ -1,6 +1,29 @@
-# Android Mirror
+# Android Mirror — macOS Android Screen Mirroring App
 
-Native macOS app for mirroring and controlling Android devices, built on [scrcpy](https://github.com/Genymobile/scrcpy) with an iPhone Mirroring–inspired interface.
+Android Mirror is a native macOS app for Android screen mirroring and remote control. It uses [scrcpy](https://github.com/Genymobile/scrcpy), ADB, SwiftUI, and Metal to mirror Android devices with USB/wireless connections, file transfer, screenshots, recording, and an iPhone Mirroring–inspired interface.
+
+If Android Mirror helps you control your Android phone from your Mac, consider giving the repo a star ⭐
+
+## Quick start
+
+```bash
+chmod +x scripts/fetch-binaries.sh && ./scripts/fetch-binaries.sh && xcodebuild -project AndroidMirror.xcodeproj -scheme AndroidMirror -configuration Debug build
+```
+
+Or open the project in Xcode:
+
+```bash
+open AndroidMirror.xcodeproj
+```
+
+## What Android Mirror does
+
+- Android screen mirroring and control on macOS.
+- USB and wireless ADB device connection workflow.
+- scrcpy-powered video/audio forwarding with quality presets.
+- Drag-and-drop Android file transfer from Mac.
+- Screenshots, MP4 recording, and experimental Metal rendering.
+- Native SwiftUI desktop app with an iPhone Mirroring–style UI.
 
 ## Screenshots
 
