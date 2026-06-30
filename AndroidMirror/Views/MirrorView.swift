@@ -382,61 +382,91 @@ struct DeviceChrome<Content: View, FrameControls: View>: View {
 
     @State private var isExpanded = false
 
-    private var topFrameHeight: CGFloat { isExpanded ? 52 : 0 }
-    private var sideFrameWidth: CGFloat { isExpanded ? 10 : 0 }
-    private var bottomFrameHeight: CGFloat { isExpanded ? 10 : 0 }
-    private var cornerRadius: CGFloat { isExpanded ? 32 : 28 }
+    private let deviceCornerRadius: CGFloat = 28
+    private let chromeCornerRadius: CGFloat = 34
+    private var topChromeHeight: CGFloat { isExpanded ? 52 : 0 }
+    private var sideChromeWidth: CGFloat { isExpanded ? 10 : 0 }
+    private var bottomChromeHeight: CGFloat { isExpanded ? 10 : 0 }
 
     var body: some View {
         VStack(spacing: 0) {
             frameControls()
-                .frame(height: topFrameHeight)
-                .padding(.horizontal, sideFrameWidth)
+                .frame(height: topChromeHeight)
+                .padding(.horizontal, sideChromeWidth)
                 .opacity(isExpanded ? 1 : 0)
                 .offset(y: isExpanded ? 0 : -18)
                 .clipped()
 
-            content()
-                .aspectRatio(aspectRatio, contentMode: .fit)
-                .background(Color(white: 0.04))
-                .clipShape(RoundedRectangle(cornerRadius: max(cornerRadius - sideFrameWidth, 22), style: .continuous))
-                .padding(.horizontal, sideFrameWidth)
-                .padding(.bottom, bottomFrameHeight)
+            deviceFrame
+                .padding(.horizontal, sideChromeWidth)
+                .padding(.bottom, bottomChromeHeight)
         }
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(white: 0.08).opacity(isExpanded ? 0.98 : 0.70),
-                    Color(white: 0.035).opacity(0.98)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+        .background(chromeBackground)
+        .clipShape(RoundedRectangle(cornerRadius: chromeCornerRadius, style: .continuous))
+        .overlay(chromeBorder)
+        .shadow(
+            color: .black.opacity(isExpanded ? 0.58 : 0.50),
+            radius: isExpanded ? 48 : 40,
+            y: isExpanded ? 24 : 20
         )
-        .background(.ultraThinMaterial.opacity(isExpanded ? 1 : 0))
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            .white.opacity(isExpanded ? 0.36 : 0.25),
-                            .white.opacity(isExpanded ? 0.12 : 0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: isExpanded ? 1.8 : 1.5
-                )
-        )
-        .shadow(color: .black.opacity(isExpanded ? 0.58 : 0.5), radius: isExpanded ? 48 : 40, y: isExpanded ? 24 : 20)
-        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: chromeCornerRadius, style: .continuous))
         .onHover { hovering in
             withAnimation(.spring(response: 0.24, dampingFraction: 0.86)) {
                 isExpanded = hovering
             }
         }
         .animation(.spring(response: 0.24, dampingFraction: 0.86), value: isExpanded)
+    }
+
+    private var deviceFrame: some View {
+        content()
+            .aspectRatio(aspectRatio, contentMode: .fit)
+            .background(Color(white: 0.04))
+            .clipShape(RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [.white.opacity(0.25), .white.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.5
+                    )
+            )
+    }
+
+    private var chromeBackground: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(white: 0.08).opacity(0.98),
+                    Color(white: 0.035).opacity(0.98)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .opacity(isExpanded ? 1 : 0)
+
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .opacity(isExpanded ? 1 : 0)
+        }
+    }
+
+    private var chromeBorder: some View {
+        RoundedRectangle(cornerRadius: chromeCornerRadius, style: .continuous)
+            .strokeBorder(
+                LinearGradient(
+                    colors: [
+                        .white.opacity(isExpanded ? 0.36 : 0),
+                        .white.opacity(isExpanded ? 0.12 : 0)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: isExpanded ? 1.8 : 0
+            )
     }
 }
 
